@@ -1,0 +1,664 @@
+/* ============================================================
+   Course Hub — style.css
+   Clean, minimal design. Two contexts: public site + admin panel.
+   Uses CSS custom properties, sub-grid, container queries.
+   WCAG 2.1 AA compliant contrast throughout.
+   ============================================================ */
+
+/* ─── Fonts ───────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+/* ─── Design tokens ───────────────────────────────────────── */
+:root {
+  /* Colour */
+  --col-bg:        #f9f9f8;
+  --col-surface:   #ffffff;
+  --col-border:    #e4e4e0;
+  --col-border-md: #c8c8c2;
+  --col-text:      #1a1a18;
+  --col-muted:     #6b6b66;
+  --col-accent:    #2d5be3;      /* primary blue — AA on white */
+  --col-accent-dk: #1e45c0;
+  --col-danger:    #c0392b;
+  --col-success:   #1a7a4a;
+  --col-badge-ug:  #dbeafe;
+  --col-badge-pg:  #ede9fe;
+  --col-badge-ug-text: #1e3a8a;
+  --col-badge-pg-text: #4c1d95;
+
+  /* Admin sidebar */
+  --col-admin-nav:     #111110;
+  --col-admin-nav-txt: #e8e8e4;
+  --col-admin-nav-muted: #888882;
+  --col-admin-accent:  #4a7cff;
+
+  /* Typography */
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  /* Spacing scale */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+
+  /* Radii */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+
+  /* Transitions */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Reset & base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--col-bg);
+  color: var(--col-text);
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+img { display: block; max-width: 100%; height: auto; }
+a { color: var(--col-accent); text-decoration: underline; text-underline-offset: 3px; }
+a:hover { color: var(--col-accent-dk); }
+
+/* ─── Accessibility ───────────────────────────────────────── */
+
+/* Visible focus ring on every interactive element */
+:focus-visible {
+  outline: 2.5px solid var(--col-accent);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+/* Skip-to-content link (keyboard navigation) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--sp-4);
+  background: var(--col-accent);
+  color: #fff;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  font-weight: 600;
+  z-index: 9999;
+  text-decoration: none;
+}
+.skip-link:focus { top: var(--sp-4); }
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────── */
+button, .btn, .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  border: 1.5px solid transparent;
+  white-space: nowrap;
+}
+
+button, .btn {
+  background: var(--col-accent);
+  color: #fff;
+  border-color: var(--col-accent);
+}
+button:hover, .btn:hover {
+  background: var(--col-accent-dk);
+  border-color: var(--col-accent-dk);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--col-accent);
+  border-color: var(--col-border-md);
+}
+.btn-secondary:hover {
+  border-color: var(--col-accent);
+  background: color-mix(in srgb, var(--col-accent) 6%, transparent);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--col-danger);
+  border: 1.5px solid color-mix(in srgb, var(--col-danger) 30%, transparent);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.15s;
+}
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--col-danger) 8%, transparent);
+}
+
+/* ─── Forms ───────────────────────────────────────────────── */
+form { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--col-text);
+  margin-bottom: var(--sp-1);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="url"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--col-border);
+  border-radius: var(--r-md);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--col-text);
+  background: var(--col-surface);
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--col-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--col-accent) 15%, transparent);
+}
+
+textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-2);
+}
+
+/* Inline radio group (filters) */
+fieldset {
+  border: none;
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+fieldset label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* ─── Feedback messages ───────────────────────────────────── */
+.error {
+  color: var(--col-danger);
+  background: color-mix(in srgb, var(--col-danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--col-danger) 20%, transparent);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 0.9rem;
+}
+
+.success {
+  color: var(--col-success);
+  background: color-mix(in srgb, var(--col-success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--col-success) 20%, transparent);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 0.9rem;
+}
+
+/* ─── Badges ──────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge:is([data-level="Undergraduate"], :not([data-level])) {
+  background: var(--col-badge-ug);
+  color: var(--col-badge-ug-text);
+}
+/* fallback — assign in HTML via text content */
+.badge { background: var(--col-badge-ug); color: var(--col-badge-ug-text); }
+
+/* ─── Tables ──────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--col-muted);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1.5px solid var(--col-border);
+}
+
+td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--col-border);
+  vertical-align: middle;
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: color-mix(in srgb, var(--col-accent) 3%, transparent); }
+
+td form { flex-direction: row; gap: var(--sp-2); }
+
+/* ─── Toolbar (heading + action button row) ───────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-6);
+}
+.toolbar h2 { font-size: 1.25rem; font-weight: 600; }
+
+/* ================================================================
+   PUBLIC STUDENT SITE
+   ================================================================ */
+
+body:not(.admin) header {
+  background: var(--col-surface);
+  border-bottom: 1px solid var(--col-border);
+  padding: var(--sp-4) var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+body:not(.admin) header h1 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+body:not(.admin) main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--sp-10) var(--sp-6);
+}
+
+/* Filter bar */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-8);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+}
+
+.filters input[type="search"] { max-width: 20rem; }
+
+/* Programme grid — uses CSS sub-grid for card alignment */
+.programme-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--sp-5);
+}
+
+/* Container query on each card */
+.programme-grid li { container-type: inline-size; }
+
+.programme-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+  height: 100%;
+}
+
+.programme-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.programme-card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.card-body {
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.card-body h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.card-body p {
+  font-size: 0.875rem;
+  color: var(--col-muted);
+  line-height: 1.55;
+}
+
+/* Container query — stack badge above title on narrow cards */
+@container (max-width: 240px) {
+  .card-body { padding: var(--sp-4); }
+  .card-body h2 { font-size: 0.9rem; }
+}
+
+/* Programme detail page */
+.hero-img {
+  width: 100%;
+  max-height: 20rem;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-6);
+}
+
+.module-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+
+.module-card {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+}
+
+.module-card h4 { font-size: 0.9375rem; font-weight: 600; margin-bottom: var(--sp-1); }
+.module-card p  { font-size: 0.875rem; color: var(--col-muted); }
+.module-card .leader { font-size: 0.8125rem; color: var(--col-muted); margin-top: var(--sp-2); }
+
+/* Interest form section */
+.interest-section {
+  max-width: 28rem;
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-8);
+  margin-top: var(--sp-10);
+}
+.interest-section h2 { margin-bottom: var(--sp-5); font-size: 1.125rem; }
+
+/* Auth / login page */
+.auth-page {
+  max-width: 22rem;
+  margin: var(--sp-16) auto;
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-10) var(--sp-8);
+  box-shadow: var(--shadow-md);
+}
+.auth-page h1 { font-size: 1.25rem; margin-bottom: var(--sp-6); }
+
+/* ================================================================
+   ADMIN PANEL
+   Two-column layout: fixed sidebar + scrollable content
+   ================================================================ */
+
+body.admin {
+  display: grid;
+  grid-template-columns: 14rem 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+  background: var(--col-bg);
+}
+
+/* Admin header spans both columns */
+body.admin > header {
+  grid-column: 1 / -1;
+  background: var(--col-admin-nav);
+  color: var(--col-admin-nav-txt);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-6);
+  height: 3.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+body.admin > header a {
+  color: var(--col-admin-nav-txt);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+body.admin > header nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+}
+
+body.admin > header nav a {
+  color: var(--col-admin-nav-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  transition: color 0.15s;
+}
+body.admin > header nav a:hover { color: var(--col-admin-nav-txt); }
+
+body.admin > header nav button {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--col-admin-nav-muted);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: 0.8125rem;
+}
+body.admin > header nav button:hover {
+  background: rgba(255,255,255,0.07);
+  color: var(--col-admin-nav-txt);
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* Admin main content */
+body.admin > main {
+  padding: var(--sp-8) var(--sp-10);
+  overflow-y: auto;
+  max-width: 64rem;
+}
+
+/* Dashboard stats row */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-8);
+}
+
+.stat {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.stat strong {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--col-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat span {
+  font-size: 0.8125rem;
+  color: var(--col-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+/* Admin navigation links (below header) */
+.admin-nav {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* Admin table wrapper — surface card */
+body.admin table {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Section headings in module list */
+body.admin section h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--col-muted);
+  margin: var(--sp-8) 0 var(--sp-3);
+}
+
+body.admin section:first-of-type h3 { margin-top: 0; }
+
+/* Admin form card */
+body.admin form {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-8);
+  max-width: 36rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+/* Tablet — collapse admin sidebar */
+@media (max-width: 768px) {
+  body.admin {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin > header {
+    grid-column: 1;
+    padding: 0 var(--sp-4);
+  }
+
+  body.admin > main {
+    padding: var(--sp-6) var(--sp-4);
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Make tables horizontally scrollable on mobile */
+  body.admin table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Mobile — student site */
+@media (max-width: 600px) {
+  body:not(.admin) header {
+    padding: var(--sp-3) var(--sp-4);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    position: static;
+  }
+
+  body:not(.admin) main {
+    padding: var(--sp-6) var(--sp-4);
+  }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-3);
+  }
+
+  .filters input[type="search"] { max-width: 100%; }
+
+  .interest-section { padding: var(--sp-6); }
+  .auth-page { margin: var(--sp-8) var(--sp-4); padding: var(--sp-6); }
+}
+
+/* Reduce motion — respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
