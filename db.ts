@@ -60,6 +60,22 @@ db.exec(`
     registered_at TEXT   NOT NULL DEFAULT (datetime('now')),
     UNIQUE(programme_id, email)
   );
+
+  -- Junction table: allows a module to appear in multiple programmes.
+  -- The owning programme is still tracked via modules.programme_id;
+  -- this table records every additional programme that shares the module.
+  CREATE TABLE IF NOT EXISTS programme_modules (
+    programme_id INTEGER NOT NULL REFERENCES programmes(id) ON DELETE CASCADE,
+    module_id    INTEGER NOT NULL REFERENCES modules(id)    ON DELETE CASCADE,
+    PRIMARY KEY (programme_id, module_id)
+  );
+`);
+
+// Backfill: ensure every existing module has a row in programme_modules
+// so the junction table is the single source of truth for membership.
+db.exec(`
+  INSERT OR IGNORE INTO programme_modules (programme_id, module_id)
+  SELECT programme_id, id FROM modules;
 `);
 
 console.log("Database initialised");
