@@ -11,6 +11,13 @@ type Programme = {
   image_url: string;
 };
 
+type StaffMember = {
+  id: number;
+  name: string;
+  bio: string;
+  image_url: string;
+};
+
 // GET /
 export function listProgrammes(ctx: RouterContext<"/">) {
   const level = ctx.request.url.searchParams.get("level") ?? "";
@@ -51,7 +58,7 @@ export function listProgrammes(ctx: RouterContext<"/">) {
   <main id="main-content">
     <form class="filters" method="GET" action="/" role="search">
       <label for="search" class="sr-only">Search programmes</label>
-      <input id="search" name="search" type="search" placeholder="Search programmes…" value="${search}">
+      <input id="search" name="search" type="search" placeholder="Search programmes\u2026" value="${search}">
 
       <fieldset>
         <legend class="sr-only">Filter by level</legend>
@@ -67,18 +74,18 @@ export function listProgrammes(ctx: RouterContext<"/">) {
       ${programmes.map((p) => `
         <li>
           <a href="/programmes/${p.id}" class="programme-card">
-            ${p.image_url ? `<img src="${sanitise(p.image_url)}" alt="">` : ""}
+            ${p.image_url ? `<img src="${sanitise(p.image_url)}" alt="" loading="lazy" width="320" height="180">` : ""}
             <div class="card-body">
               <span class="badge">${sanitise(p.level)}</span>
               <h2>${sanitise(p.title)}</h2>
-              <p>${sanitise(p.description).slice(0, 120)}…</p>
+              <p>${sanitise(p.description).slice(0, 120)}\u2026</p>
             </div>
           </a>
         </li>
       `).join("")}
     </ul>
 
-    ${programmes.length === 0 ? "<p>No programmes found.</p>" : ""}
+    ${programmes.length === 0 ? `<div class="empty-state"><p>No programmes found matching your search.</p></div>` : ""}
   </main>
   <script src="/static/app.js"></script>
 </body>
@@ -95,7 +102,27 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
 
   if (!programme) {
     ctx.response.status = 404;
-    ctx.response.body = "<h1>Programme not found</h1>";
+    ctx.response.body = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Not Found — Course Hub</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <header>
+    <a href="/">\u2190 All programmes</a>
+    <h1>Course Hub</h1>
+  </header>
+  <main id="main-content" class="not-found">
+    <h2>Programme not found</h2>
+    <p>This programme may have been removed or is no longer available.</p>
+    <a href="/" class="btn">Browse all programmes</a>
+  </main>
+</body>
+</html>`;
     return;
   }
 
@@ -108,6 +135,15 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
     ORDER BY m.year, m.title
   `).all(id);
 
+  // Fetch programme leaders
+  const leaders = db.prepare(`
+    SELECT s.id, s.name, s.bio, s.image_url
+    FROM staff s
+    INNER JOIN programme_leaders pl ON pl.staff_id = s.id
+    WHERE pl.programme_id = ?
+    ORDER BY s.name
+  `).all(id) as StaffMember[];
+
   ctx.response.type = "html";
   ctx.response.body = `<!DOCTYPE html>
 <html lang="en">
@@ -118,15 +154,31 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <header>
-    <a href="/">← All programmes</a>
+    <a href="/">\u2190 All programmes</a>
     <h1>${sanitise(programme.title)}</h1>
     <span class="badge">${sanitise(programme.level)}</span>
   </header>
   <main id="main-content">
-    ${programme.image_url ? `<img src="${sanitise(programme.image_url)}" alt="" class="hero-img">` : ""}
-    <p>${sanitise(programme.description)}</p>
+    ${programme.image_url ? `<img src="${sanitise(programme.image_url)}" alt="${sanitise(programme.title)} programme image" class="hero-img" loading="eager" width="1152" height="320">` : ""}
+    <p class="programme-description">${sanitise(programme.description)}</p>
+
+    ${leaders.length > 0 ? `
+    <section aria-labelledby="leaders-heading" class="leaders-section">
+      <h2 id="leaders-heading">Programme Leaders</h2>
+      <ul class="staff-list" role="list">
+        ${leaders.map((s) => `
+          <li class="staff-card">
+            ${s.image_url ? `<img src="${sanitise(s.image_url)}" alt="Photo of ${sanitise(s.name)}" class="staff-avatar" loading="lazy" width="64" height="64">` : `<div class="staff-avatar staff-avatar--placeholder" aria-hidden="true"></div>`}
+            <div>
+              <strong>${sanitise(s.name)}</strong>
+              ${s.bio ? `<p>${sanitise(s.bio)}</p>` : ""}
+            </div>
+          </li>
+        `).join("")}
+      </ul>
+    </section>` : ""}
 
     <section aria-labelledby="modules-heading">
       <h2 id="modules-heading">Modules</h2>
@@ -138,9 +190,12 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
           <ul class="module-list">
             ${yearModules.map((m) => `
               <li class="module-card">
-                <h4>${sanitise(m.title as string)}</h4>
-                <p>${sanitise(m.description as string)}</p>
-                ${m.leader_name ? `<p class="leader">Leader: ${sanitise(m.leader_name as string)}</p>` : ""}
+                ${m.image_url ? `<img src="${sanitise(m.image_url as string)}" alt="" class="module-img" loading="lazy" width="280" height="140">` : ""}
+                <div class="module-card-body">
+                  <h4>${sanitise(m.title as string)}</h4>
+                  <p>${sanitise(m.description as string)}</p>
+                  ${m.leader_name ? `<p class="leader"><span aria-hidden="true">&#128203;</span> Module leader: ${sanitise(m.leader_name as string)}</p>` : ""}
+                </div>
               </li>
             `).join("")}
           </ul>`;
@@ -149,16 +204,31 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
 
     <section aria-labelledby="interest-heading" class="interest-section">
       <h2 id="interest-heading">Register your interest</h2>
+      <p class="interest-intro">Leave your details and we\u2019ll keep you updated about open days, application deadlines, and more.</p>
       <form id="interest-form" data-programme-id="${id}">
         <label for="name">Your name</label>
-        <input id="name" name="name" type="text" required autocomplete="name">
+        <input id="name" name="name" type="text" required autocomplete="name" placeholder="Jane Smith">
 
         <label for="email">Your email</label>
-        <input id="email" name="email" type="email" required autocomplete="email">
+        <input id="email" name="email" type="email" required autocomplete="email" placeholder="jane@example.com">
 
-        <button type="submit">Register interest</button>
+        <div class="form-actions">
+          <button type="submit">Register interest</button>
+        </div>
       </form>
-      <p id="interest-message" aria-live="polite"></p>
+      <p id="interest-message" aria-live="polite" class="interest-feedback"></p>
+
+      <details class="withdraw-details">
+        <summary>Already registered? Withdraw interest</summary>
+        <form id="withdraw-form" data-programme-id="${id}" class="withdraw-form">
+          <label for="withdraw-email">Your email address</label>
+          <input id="withdraw-email" name="email" type="email" required autocomplete="email" placeholder="jane@example.com">
+          <div class="form-actions">
+            <button type="submit" class="btn-secondary">Withdraw interest</button>
+          </div>
+        </form>
+        <p id="withdraw-message" aria-live="polite" class="interest-feedback"></p>
+      </details>
     </section>
   </main>
   <script src="/static/app.js"></script>
@@ -188,7 +258,7 @@ export async function registerInterest(
       "INSERT INTO student_interests (programme_id, name, email) VALUES (?, ?, ?)"
     ).run(id, name, email);
 
-    ctx.response.body = { success: true, message: "Interest registered!" };
+    ctx.response.body = { success: true, message: "Interest registered! We\u2019ll be in touch." };
   } catch {
     // UNIQUE constraint violation = already registered
     ctx.response.status = 409;
@@ -204,9 +274,21 @@ export async function withdrawInterest(
   const body = await ctx.request.body.formData();
   const { email } = sanitiseBody({ email: body.get("email") });
 
-  db.prepare(
+  if (!email || !email.includes("@")) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "Please provide a valid email address." };
+    return;
+  }
+
+  const result = db.prepare(
     "DELETE FROM student_interests WHERE programme_id = ? AND email = ?"
   ).run(id, email);
 
-  ctx.response.body = { success: true, message: "Interest withdrawn." };
+  if (result.changes === 0) {
+    ctx.response.status = 404;
+    ctx.response.body = { error: "No registration found for that email address." };
+    return;
+  }
+
+  ctx.response.body = { success: true, message: "Your interest has been withdrawn." };
 }
