@@ -144,6 +144,20 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
     ORDER BY s.name
   `).all(id) as StaffMember[];
 
+  // For each module, find other published programmes that share it
+  type SharedProg = { title: string };
+  function getSharedProgrammes(moduleId: number): SharedProg[] {
+    return db.prepare(`
+      SELECT p.title
+      FROM programme_modules pm
+      JOIN programmes p ON p.id = pm.programme_id
+      WHERE pm.module_id = ?
+        AND pm.programme_id != ?
+        AND p.published = 1
+      ORDER BY p.title
+    `).all(moduleId, id) as SharedProg[];
+  }
+
   ctx.response.type = "html";
   ctx.response.body = `<!DOCTYPE html>
 <html lang="en">
@@ -188,16 +202,24 @@ export function getProgramme(ctx: RouterContext<"/programmes/:id">) {
         return `
           <h3>Year ${year}</h3>
           <ul class="module-list">
-            ${yearModules.map((m) => `
+            ${yearModules.map((m) => {
+              const shared = getSharedProgrammes(m.id as number);
+              return `
               <li class="module-card">
                 ${m.image_url ? `<img src="${sanitise(m.image_url as string)}" alt="" class="module-img" loading="lazy" width="280" height="140">` : ""}
                 <div class="module-card-body">
                   <h4>${sanitise(m.title as string)}</h4>
                   <p>${sanitise(m.description as string)}</p>
                   ${m.leader_name ? `<p class="leader"><span aria-hidden="true">&#128203;</span> Module leader: ${sanitise(m.leader_name as string)}</p>` : ""}
+                  ${shared.length > 0
+                    ? `<p class="shared-note" aria-label="This module is shared with other programmes">
+                        <span aria-hidden="true">&#128257;</span>
+                        Also in: ${shared.map((p) => `<span class="badge badge--shared">${sanitise(p.title)}</span>`).join(" ")}
+                      </p>`
+                    : ""}
                 </div>
-              </li>
-            `).join("")}
+              </li>`;
+            }).join("")}
           </ul>`;
       }).join("")}
     </section>
