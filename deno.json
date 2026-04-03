@@ -1,7 +1,8 @@
 {
   "tasks": {
     "dev": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi main.ts",
-    "check": "deno check main.ts"
+    "check": "deno check main.ts",
+    "seed": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi scripts/seed.ts"
   },
   "fmt": {
     "lineWidth": 100,
