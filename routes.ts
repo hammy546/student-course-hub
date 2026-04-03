@@ -2,26 +2,32 @@ import { Router } from "jsr:@oak/oak";
 import * as programme from "./controllers/programme.ts";
 import * as admin from "./controllers/admin.ts";
 import * as staff from "./controllers/staff.ts";
+import * as staffPortal from "./controllers/staffPortal.ts";
 import * as modules from "./controllers/modules.ts";
 import * as auth from "./controllers/auth.ts";
 import { requireAuth } from "./middleware/auth.ts";
 
 export const router = new Router();
 
-// ─── Public / student-facing routes ──────────────────────────────────────
+// ─── Public / student-facing routes ──────────────────────────────────────────
 router
   .get("/", programme.listProgrammes)
   .get("/programmes/:id", programme.getProgramme)
   .post("/programmes/:id/interest", programme.registerInterest)
   .delete("/programmes/:id/interest", programme.withdrawInterest);
 
-// ─── Auth routes ──────────────────────────────────────────────────
+// ─── Staff portal (public, email-lookup based) ────────────────────────────────
+router
+  .get("/staff/portal", staffPortal.portalHome)
+  .post("/staff/portal", staffPortal.portalLookup);
+
+// ─── Auth routes ──────────────────────────────────────────────────────────────
 router
   .get("/admin/login", auth.loginPage)
   .post("/admin/login", auth.login)
   .post("/admin/logout", auth.logout);
 
-// ─── Admin routes (protected) ──────────────────────────────────────────
+// ─── Admin routes (protected) ─────────────────────────────────────────────────
 router
   .get("/admin", requireAuth, admin.dashboard)
   .get("/admin/programmes", requireAuth, admin.listProgrammes)
@@ -33,10 +39,9 @@ router
   .post("/admin/programmes/:id/publish", requireAuth, admin.togglePublish)
   .get("/admin/programmes/:id/interest", requireAuth, admin.viewInterest)
   .get("/admin/programmes/:id/interest/export", requireAuth, admin.exportMailingList)
-  // Delete a single interest registration by email
   .post("/admin/programmes/:id/interest/:email/delete", requireAuth, admin.deleteInterest);
 
-// ─── Module management routes (protected) ──────────────────────────────────
+// ─── Module management routes (protected) ────────────────────────────────────
 // Note: /new must be registered before /:moduleId to avoid Oak matching "new"
 // as a moduleId parameter.
 router
@@ -47,7 +52,7 @@ router
   .post("/admin/programmes/:id/modules/:moduleId", requireAuth, modules.updateModule)
   .post("/admin/programmes/:id/modules/:moduleId/delete", requireAuth, modules.deleteModule);
 
-// ─── Staff management routes (protected) ──────────────────────────────────
+// ─── Staff management routes (protected) ─────────────────────────────────────
 // Same /new-before-/:id ordering rule applies.
 router
   .get("/admin/staff", requireAuth, staff.listStaff)
