@@ -104,6 +104,17 @@ function moduleForm(
     </form>`;
 }
 
+/** Returns every programme (other than the owner) that shares this module. */
+function getSharedProgrammes(moduleId: number, ownerProgrammeId: number): Programme[] {
+  return db.prepare(`
+    SELECT p.id, p.title
+    FROM programme_modules pm
+    JOIN programmes p ON p.id = pm.programme_id
+    WHERE pm.module_id = ? AND pm.programme_id != ?
+    ORDER BY p.title
+  `).all(moduleId, ownerProgrammeId) as Programme[];
+}
+
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
 // GET /admin/programmes/:id/modules
@@ -152,14 +163,22 @@ export function listModules(
             <tr>
               <th>Title</th>
               <th>Module leader</th>
+              <th>Shared with</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${mods.map((m) => `
+            ${mods.map((m) => {
+              const shared = getSharedProgrammes(m.id, progId);
+              return `
               <tr>
                 <td>${sanitise(m.title)}</td>
                 <td>${m.leader_name ? sanitise(m.leader_name) : "<em>None assigned</em>"}</td>
+                <td>
+                  ${shared.length > 0
+                    ? shared.map((p) => `<span class="badge badge--shared">${sanitise(p.title)}</span>`).join(" ")
+                    : "<em>—</em>"}
+                </td>
                 <td>
                   <a href="/admin/programmes/${progId}/modules/${m.id}/edit">Edit</a>
                   <form method="POST"
@@ -169,8 +188,8 @@ export function listModules(
                     <button type="submit" class="btn-danger">Delete</button>
                   </form>
                 </td>
-              </tr>
-            `).join("")}
+              </tr>`;
+            }).join("")}
           </tbody>
         </table>
       </section>
@@ -233,6 +252,11 @@ export async function createModule(
     ).run(moduleId, leaderId);
   }
 
+  // Register this module in the junction table for its owning programme
+  db.prepare(
+    "INSERT OR IGNORE INTO programme_modules (programme_id, module_id) VALUES (?, ?)"
+  ).run(progId, moduleId);
+
   ctx.response.redirect(`/admin/programmes/${progId}/modules`);
 }
 
@@ -262,6 +286,14 @@ export function editModuleForm(
     SELECT staff_id FROM module_leaders WHERE module_id = ?
   `).get(moduleId) as { staff_id: number } | undefined;
 
+  // Programmes currently sharing this module (excluding owner)
+  const sharedWith = getSharedProgrammes(moduleId, progId);
+
+  // All other programmes available to share with
+  const allProgrammes = db.prepare(
+    "SELECT id, title FROM programmes WHERE id != ? ORDER BY title"
+  ).all(progId) as Programme[];
+
   ctx.response.type = "html";
   ctx.response.body = adminLayout(
     `Edit module — ${mod.title}`,
@@ -269,6 +301,36 @@ export function editModuleForm(
     <a href="/admin/programmes/${progId}/modules">← Back to modules</a>
     <h2>Edit: ${sanitise(mod.title)}</h2>
     ${moduleForm(progId, allStaff, mod, currentLeader?.staff_id)}
+
+    <hr>
+    <section aria-labelledby="sharing-heading">
+      <h3 id="sharing-heading">Shared with other programmes</h3>
+      <p>This module currently appears in:</p>
+      <ul>
+        <li><strong>${sanitise(programme.title)}</strong> (owner)</li>
+        ${sharedWith.map((p) => `
+          <li>
+            ${sanitise(p.title)}
+            <form method="POST" action="/admin/programmes/${progId}/modules/${moduleId}/share/${p.id}/remove" style="display:inline">
+              <button type="submit" class="btn-danger btn-sm">Remove</button>
+            </form>
+          </li>
+        `).join("")}
+      </ul>
+
+      ${allProgrammes.filter((p) => !sharedWith.find((s) => s.id === p.id)).length > 0 ? `
+      <form method="POST" action="/admin/programmes/${progId}/modules/${moduleId}/share">
+        <label for="share_programme_id">Also share with:</label>
+        <select id="share_programme_id" name="share_programme_id">
+          <option value="">— Select a programme —</option>
+          ${allProgrammes
+            .filter((p) => !sharedWith.find((s) => s.id === p.id))
+            .map((p) => `<option value="${p.id}">${sanitise(p.title)}</option>`)
+            .join("")}
+        </select>
+        <button type="submit" class="btn">Share</button>
+      </form>` : "<p>This module is shared with all other programmes.</p>"}
+    </section>
     `
   );
 }
@@ -313,10 +375,47 @@ export function deleteModule(
   const progId = Number(ctx.params.id);
   const moduleId = Number(ctx.params.moduleId);
 
-  // CASCADE in the schema handles module_leaders deletion automatically
+  // CASCADE in the schema handles module_leaders + programme_modules deletion automatically
   db.prepare(
     "DELETE FROM modules WHERE id = ? AND programme_id = ?"
   ).run(moduleId, progId);
 
   ctx.response.redirect(`/admin/programmes/${progId}/modules`);
+}
+
+// POST /admin/programmes/:id/modules/:moduleId/share
+export async function shareModule(
+  ctx: RouterContext<"/admin/programmes/:id/modules/:moduleId/share">
+) {
+  const progId = Number(ctx.params.id);
+  const moduleId = Number(ctx.params.moduleId);
+
+  const body = await ctx.request.body.formData();
+  const targetId = Number(body.get("share_programme_id"));
+
+  if (targetId) {
+    db.prepare(
+      "INSERT OR IGNORE INTO programme_modules (programme_id, module_id) VALUES (?, ?)"
+    ).run(targetId, moduleId);
+  }
+
+  ctx.response.redirect(`/admin/programmes/${progId}/modules/${moduleId}/edit`);
+}
+
+// POST /admin/programmes/:id/modules/:moduleId/share/:targetId/remove
+export function unshareModule(
+  ctx: RouterContext<"/admin/programmes/:id/modules/:moduleId/share/:targetId/remove">
+) {
+  const progId = Number(ctx.params.id);
+  const moduleId = Number(ctx.params.moduleId);
+  const targetId = Number(ctx.params.targetId);
+
+  // Never remove from the owning programme
+  if (targetId !== progId) {
+    db.prepare(
+      "DELETE FROM programme_modules WHERE programme_id = ? AND module_id = ?"
+    ).run(targetId, moduleId);
+  }
+
+  ctx.response.redirect(`/admin/programmes/${progId}/modules/${moduleId}/edit`);
 }
