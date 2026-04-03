@@ -50,7 +50,9 @@ router
   .post("/admin/programmes/:id/modules", requireAuth, modules.createModule)
   .get("/admin/programmes/:id/modules/:moduleId/edit", requireAuth, modules.editModuleForm)
   .post("/admin/programmes/:id/modules/:moduleId", requireAuth, modules.updateModule)
-  .post("/admin/programmes/:id/modules/:moduleId/delete", requireAuth, modules.deleteModule);
+  .post("/admin/programmes/:id/modules/:moduleId/delete", requireAuth, modules.deleteModule)
+  .post("/admin/programmes/:id/modules/:moduleId/share", requireAuth, modules.shareModule)
+  .post("/admin/programmes/:id/modules/:moduleId/share/:targetId/remove", requireAuth, modules.unshareModule);
 
 // ─── Staff management routes (protected) ─────────────────────────────────────
 // Same /new-before-/:id ordering rule applies.
