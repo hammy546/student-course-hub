@@ -45,16 +45,16 @@ export function listProgrammes(ctx: RouterContext<"/admin/programmes">) {
           <tr>
             <td>${sanitise(p.title as string)}</td>
             <td>${sanitise(p.level as string)}</td>
-            <td>${p.published ? "Published" : "Draft"}</td>
-            <td>
-              <a href="/admin/programmes/${p.id}/edit">Edit</a>
-              <a href="/admin/programmes/${p.id}/modules">Modules</a>
-              <a href="/admin/programmes/${p.id}/interest">Mailing list</a>
+            <td>${p.published ? "<span class=\"status-published\">Published</span>" : "<span class=\"status-draft\">Draft</span>"}</td>
+            <td class="actions-cell">
+              <a href="/admin/programmes/${p.id}/edit" class="btn-secondary">Edit</a>
+              <a href="/admin/programmes/${p.id}/modules" class="btn-secondary">Modules</a>
+              <a href="/admin/programmes/${p.id}/interest" class="btn-secondary">Mailing list</a>
               <form method="POST" action="/admin/programmes/${p.id}/publish" style="display:inline">
-                <button type="submit">${p.published ? "Unpublish" : "Publish"}</button>
+                <button type="submit" class="btn-secondary">${p.published ? "Unpublish" : "Publish"}</button>
               </form>
               <form method="POST" action="/admin/programmes/${p.id}/delete" style="display:inline"
-                    onsubmit="return confirm('Delete this programme?')">
+                    onsubmit="return confirm('Delete this programme and all its modules?')">
                 <button type="submit" class="btn-danger">Delete</button>
               </form>
             </td>
@@ -151,34 +151,64 @@ export function viewInterest(
   if (!programme) { ctx.response.status = 404; return; }
 
   const students = db.prepare(
-    "SELECT name, email, registered_at FROM student_interests WHERE programme_id=? ORDER BY registered_at DESC"
-  ).all(id) as Array<{ name: string; email: string; registered_at: string }>;
+    "SELECT id, name, email, registered_at FROM student_interests WHERE programme_id=? ORDER BY registered_at DESC"
+  ).all(id) as Array<{ id: number; name: string; email: string; registered_at: string }>;
 
   ctx.response.type = "html";
   ctx.response.body = adminLayout(`Interest: ${sanitise(programme.title)}`, `
     <div class="toolbar">
       <h2>Mailing list — ${sanitise(programme.title)}</h2>
-      <a href="/admin/programmes/${id}/interest/export" class="btn">Export CSV</a>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <a href="/admin/programmes/${id}/interest/export" class="btn">Export CSV</a>
+        <a href="/admin/programmes" class="btn-secondary">← Back</a>
+      </div>
     </div>
+    ${students.length === 0
+      ? "<p style=\"color:var(--col-muted)\">No registrations yet for this programme.</p>"
+      : `
+    <p style="margin-bottom:1rem;color:var(--col-muted);font-size:0.875rem">${students.length} registration${students.length === 1 ? "" : "s"}</p>
     <table>
-      <thead><tr><th>Name</th><th>Email</th><th>Registered</th><th>Action</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Registered</th>
+          <th>Action</th>
+        </tr>
+      </thead>
       <tbody>
         ${students.map((s) => `
           <tr>
             <td>${sanitise(s.name)}</td>
-            <td>${sanitise(s.email)}</td>
-            <td>${sanitise(s.registered_at)}</td>
+            <td><a href="mailto:${sanitise(s.email)}">${sanitise(s.email)}</a></td>
+            <td style="white-space:nowrap;font-size:0.875rem;color:var(--col-muted)">${sanitise(s.registered_at)}</td>
             <td>
-              <form method="POST" action="/admin/programmes/${id}/interest/${encodeURIComponent(s.email)}/delete">
+              <form method="POST" action="/admin/programmes/${id}/interest/${encodeURIComponent(s.email)}/delete"
+                    onsubmit="return confirm('Remove ${sanitise(s.name)}\u2019s registration?')">
                 <button type="submit" class="btn-danger">Remove</button>
               </form>
             </td>
           </tr>
         `).join("")}
       </tbody>
-    </table>
-    ${students.length === 0 ? "<p>No registrations yet.</p>" : ""}
+    </table>`
+    }
   `);
+}
+
+// POST /admin/programmes/:id/interest/:email/delete
+export function deleteInterest(
+  ctx: RouterContext<"/admin/programmes/:id/interest/:email/delete">
+) {
+  const programmeId = Number(ctx.params.id);
+  // Oak URL-decodes params automatically
+  const email = ctx.params.email;
+
+  db.prepare(
+    "DELETE FROM student_interests WHERE programme_id = ? AND email = ?"
+  ).run(programmeId, email);
+
+  ctx.response.redirect(`/admin/programmes/${programmeId}/interest`);
 }
 
 // GET /admin/programmes/:id/interest/export  — CSV download
@@ -186,21 +216,25 @@ export function exportMailingList(
   ctx: RouterContext<"/admin/programmes/:id/interest/export">
 ) {
   const id = Number(ctx.params.id);
+  const programme = db.prepare("SELECT title FROM programmes WHERE id=?").get(id) as { title: string } | undefined;
   const students = db.prepare(
     "SELECT name, email, registered_at FROM student_interests WHERE programme_id=? ORDER BY name"
   ).all(id) as Array<{ name: string; email: string; registered_at: string }>;
 
   const csv = [
     "name,email,registered_at",
-    ...students.map((s) => `"${s.name}","${s.email}","${s.registered_at}"`),
+    ...students.map((s) =>
+      `"${s.name.replace(/"/g, '""')}","${s.email.replace(/"/g, '""')}","${s.registered_at}"`
+    ),
   ].join("\n");
 
-  ctx.response.headers.set("Content-Disposition", `attachment; filename="mailing-list-${id}.csv"`);
+  const slug = programme ? programme.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") : String(id);
+  ctx.response.headers.set("Content-Disposition", `attachment; filename="mailing-list-${slug}.csv"`);
   ctx.response.type = "text/csv";
   ctx.response.body = csv;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
 function adminLayout(title: string, content: string): string {
   return `<!DOCTYPE html>
@@ -247,8 +281,10 @@ function programmeForm(p: Record<string, unknown> = {}): string {
       <label for="image_url">Image URL</label>
       <input id="image_url" name="image_url" type="url" value="${sanitise(p.image_url as string ?? "")}">
 
-      <button type="submit">${p.id ? "Save changes" : "Create programme"}</button>
-      <a href="/admin/programmes">Cancel</a>
-      ${p.id ? `<a href="/admin/programmes/${p.id}/modules" class="btn-secondary">Manage modules →</a>` : ""}
+      <div class="form-actions">
+        <button type="submit">${p.id ? "Save changes" : "Create programme"}</button>
+        <a href="/admin/programmes" class="btn-secondary">Cancel</a>
+        ${p.id ? `<a href="/admin/programmes/${p.id}/modules" class="btn-secondary">Manage modules →</a>` : ""}
+      </div>
     </form>`;
 }
