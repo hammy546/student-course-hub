@@ -1,0 +1,21 @@
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+
+# Deno cache
+.deno/
+
+# Editor directories
+.vscode/
+.idea/
+
+# Node (if ever used)
+node_modules/
