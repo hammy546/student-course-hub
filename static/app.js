@@ -1,7 +1,6 @@
-// Client-side: handles the interest registration and withdrawal forms without a full page reload.
-// This is the "asynchronous client-side update" pattern for Video 3.
+// Handles the interest registration and withdrawal forms without a full page reload.
 
-// ── Register interest ────────────────────────────────────────
+// Register interest 
 const form = document.getElementById("interest-form");
 const message = document.getElementById("interest-message");
 

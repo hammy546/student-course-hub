@@ -2,13 +2,13 @@ import type { RouterContext } from "jsr:@oak/oak";
 import { db } from "../db.ts";
 import { sanitise } from "../middleware/sanitise.ts";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type StaffRow = { id: number; name: string; email: string; bio: string; image_url: string };
 type ProgrammeRow = { id: number; title: string; level: string; published: number; interest_count: number };
 type ModuleRow = { id: number; title: string; description: string; year: number; programme_title: string; programme_id: number };
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
+// Layout
 
 function portalLayout(title: string, content: string): string {
   return `<!DOCTYPE html>
@@ -65,8 +65,8 @@ export function portalHome(ctx: RouterContext<"/staff/portal">) {
   `);
 }
 
-// ─── POST /staff/portal ───────────────────────────────────────────────────────
-// Looks up staff by email and renders their dashboard
+// POST /staff/portal 
+// Looks up staff by email and renders their dashboard  
 export async function portalLookup(ctx: RouterContext<"/staff/portal">) {
   const body = await ctx.request.body.formData();
   const rawEmail = (body.get("email") ?? "").toString().trim().toLowerCase();
