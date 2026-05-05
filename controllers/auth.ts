@@ -2,7 +2,7 @@ import type { RouterContext } from "jsr:@oak/oak";
 import { db } from "../db.ts";
 import { sanitise } from "../middleware/sanitise.ts";
 
-// Use bcrypt for password hashing
+//bcrypt for password hashing
 import { compare } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // GET /admin/login
